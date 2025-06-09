@@ -131,7 +131,6 @@ private class Slot<T>(initialIndex: Int) {
     // seq == pos + 1 -> ready to read
     private val sequence = atomic(initialIndex)
 
-    //@Volatile is this redundant?
     private var value: T? = null
 
     fun getOrNull(head: Int): T? {
