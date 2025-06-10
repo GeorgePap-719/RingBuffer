@@ -23,7 +23,7 @@ class ManyToOneRingBuffer<T>(override val capacity: Int) : RingBuffer<T> {
                 +---------------------------+
                     ^         ^
                     |         |
-           index = head % 2   index = head % 2
+           index = head % 2   index = (head + 1) % 2
                     |
                 read position
 
@@ -71,8 +71,7 @@ class ManyToOneRingBuffer<T>(override val capacity: Int) : RingBuffer<T> {
                         [ 1 --> 2 ] --> read done --> ready to be written
                         [ 2 --> 3 ] --> write done --> ready to be read
 
-        Only one thread can win the CAS(tail, tail+1) to reserve a slot,
-        ensuring correctness in concurrent sends.
+       Note: Only one thread can win the CAS(tail, tail+1) to reserve a slot.
     */
     private val slots = Array(capacity) { Slot<T>(it) }
 
