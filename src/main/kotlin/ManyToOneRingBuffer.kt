@@ -4,7 +4,7 @@ import kotlinx.atomicfu.atomic
 
 /**
  * FIFO Multiple-producer single-consumer ring-buffer implementation using a fixed-size array,
- * based on the [Agrona](https://github.com/aeron-io/agrona) project.
+ * based on the [Disruptor](https://lmax-exchange.github.io/disruptor/disruptor.html) paper.
  *
  * Note: This RingBuffer is not linearizable. Since we follow FIFO ordering the following execution is acceptable:
  *
