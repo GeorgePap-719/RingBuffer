@@ -14,6 +14,10 @@ import kotlinx.atomicfu.atomic
  * ```
  */
 class ManyToOneRingBuffer<T>(override val capacity: Int) : RingBuffer<T> {
+    init {
+        requirePowerOfTwo(capacity)
+    }
+
     /*
         Logical structure of the ring buffer (capacity = 2)
 
@@ -78,6 +82,8 @@ class ManyToOneRingBuffer<T>(override val capacity: Int) : RingBuffer<T> {
     private val head = atomic(0)
     private val tail = atomic(0)
 
+    private val mask = capacity - 1
+
     override val size: Int get() = tail.value - head.value
 
     override fun trySend(element: T): Boolean {
@@ -85,7 +91,7 @@ class ManyToOneRingBuffer<T>(override val capacity: Int) : RingBuffer<T> {
             val curTail = tail.value
             val curHead = head.value
             if (curTail - curHead == capacity) return false
-            val index = curTail % capacity
+            val index = getIndex(curTail)
             val slot = slots[index]
             // Check first for expected sequence.
             if (slot.getSeqNumber() != curTail) {
@@ -107,23 +113,23 @@ class ManyToOneRingBuffer<T>(override val capacity: Int) : RingBuffer<T> {
         val curTail = tail.value
         val curHead = head.value
         if (curTail - curHead == 0) return null
-        val index = curHead % capacity
+        val index = getIndex(curHead)
         val slot = slots[index]
         val element = slot.getOrNull(curHead)
-            // Not ready for read.
+        // Not ready for read.
             ?: return null
         head.incrementAndGet()
         slot.free(capacity)
         return element
     }
+
+    private fun getIndex(pointer: Int): Int = pointer and mask
 }
 
 /**
- * Each slot in the array is initialized with the corresponding index,
- * e.g., the first slot is expected to be created with index zero.
+ * Each slot in the array is initialized with the corresponding index, e.g., the first slot is expected to be created with index zero.
  * It is the reader's responsibility to advance the sequence at the next position.
- *
- * This class is introduced to help "group" the synchronization logic around the `sequence`.
+ * Essentially, this is a slot in the disruptor's ring-buffer algorithm.
  */
 private class Slot<T>(initialIndex: Int) {
     // seq == tail -> ready to write
@@ -164,4 +170,9 @@ private class Slot<T>(initialIndex: Int) {
     override fun toString(): String {
         return "Slot(seq:${sequence.value}, value:$value)"
     }
+}
+
+private fun requirePowerOfTwo(capacity: Int) {
+    val isPowerOfTwo = capacity > 0 && ((capacity and (capacity.inv() + 1)) == capacity)
+    require(isPowerOfTwo) { "Capacity must be a positive power of 2, but got:$capacity" }
 }
