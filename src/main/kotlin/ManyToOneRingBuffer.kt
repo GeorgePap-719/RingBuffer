@@ -104,7 +104,7 @@ class ManyToOneRingBuffer<T>(override val capacity: Int) : RingBuffer<T> {
                 continue
             }
             // This will always succeed.
-            slot.allocate(element)
+            slot.allocate(curTail, element)
             return true
         }
     }
@@ -118,7 +118,7 @@ class ManyToOneRingBuffer<T>(override val capacity: Int) : RingBuffer<T> {
         val element = slot.getOrNull(curHead)
         // Not ready for read.
             ?: return null
-        head.incrementAndGet()
+        head.value = curHead + 1 // memory barrier is enough
         slot.free(capacity)
         return element
     }
@@ -149,11 +149,15 @@ private class Slot<T>(initialIndex: Int) {
 
     fun getSeqNumber(): Int = sequence.value
 
-    fun allocate(value: T) {
+    fun allocate(pos: Int, value: T) {
         // First update value,
         this.value = value
-        // Then inform make slot ready.
-        sequence.incrementAndGet()
+        // Then inform slot is ready.
+        val expected = pos
+        while (sequence.value != expected) {
+            // Busy spin.
+        }
+        sequence.value = pos + 1
     }
 
     fun free(capacity: Int) {
@@ -161,10 +165,7 @@ private class Slot<T>(initialIndex: Int) {
         assert(value != null)
         value = null // free value
         // Mark slot ready to write.
-        val cas = sequence.compareAndSet(seq, seq - 1 + capacity)
-        // We have single-produce semantics;
-        // therefore, this should always succeed.
-        assert(cas)
+        sequence.value = seq - 1 + capacity
     }
 
     override fun toString(): String {
