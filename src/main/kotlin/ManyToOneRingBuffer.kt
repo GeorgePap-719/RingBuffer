@@ -4,7 +4,7 @@ import kotlinx.atomicfu.atomic
 
 /**
  * FIFO Multiple-producer single-consumer ring-buffer implementation using a fixed-size array,
- * based on the [Disruptor](https://lmax-exchange.github.io/disruptor/disruptor.html) paper.
+ * based on the [agrona](https://github.com/aeron-io/agrona) project.
  *
  * Note: This RingBuffer is not linearizable. Since we follow FIFO ordering the following execution is acceptable:
  *
@@ -153,10 +153,6 @@ private class Slot<T>(initialIndex: Int) {
         // First update value,
         this.value = value
         // Then inform slot is ready.
-        val expected = pos
-        while (sequence.value != expected) {
-            // Busy spin.
-        }
         sequence.value = pos + 1
     }
 
